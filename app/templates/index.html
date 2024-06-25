@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autoverwaltung</title>
+</head>
+<body>
+<h1>Auto Übersicht</h1>
+
+<h2>Neues Auto hinzufügen</h2>
+<form id="addCarForm">
+    Marke: <input type="text" id="make"><br>
+    Modell: <input type="text" id="model"><br>
+    Baujahr: <input type="number" id="year"><br>
+    Farbe: <input type="text" id="color"><br>
+    Preis: <input type="number" id="price"><br>
+    <button type="submit">Auto hinzufügen</button>
+</form>
+
+<h2>Auto Liste</h2>
+<div id="pagination">
+    <button onclick="previousPage()">Vorherige Seite</button>
+    <span id="pageInfo"></span>
+    <button onclick="nextPage()">Nächste Seite</button>
+</div>
+<table>
+    <tr>
+        <th>ID</th>
+        <th>Marke</th>
+        <th>Modell</th>
+        <th>Baujahr</th>
+        <th>Farbe</th>
+        <th>Preis</th>
+        <th>Aktionen</th>
+    </tr>
+    <tbody id="carsTable"></tbody>
+</table>
+
+
+<script>
+    let currentPage = 1;
+    let totalPages = 0;
+
+    document.addEventListener("DOMContentLoaded", function () {
+        fetchCars();
+
+        document.getElementById('addCarForm').onsubmit = function (event) {
+            event.preventDefault();
+            const carData = {
+                make: document.getElementById('make').value,
+                model: document.getElementById('model').value,
+                year: parseInt(document.getElementById('year').value),
+                color: document.getElementById('color').value,
+                price: parseInt(document.getElementById('price').value)
+            };
+            fetch('/cars', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(carData)
+            }).then(response => response.json()).then(data => {
+                fetchCars();
+            }).catch(error => console.error('Error:', error));
+        };
+    });
+
+    function fetchCars() {
+        fetch(`/cars?page=${currentPage}`).then(response => response.json()).then(data => {
+            totalPages = data.pages; // Stelle sicher, dass deine API diese Information zurückgibt
+            updatePageInfo();
+            const carsTable = document.getElementById('carsTable');
+            carsTable.innerHTML = '';
+            data.cars.forEach(car => {
+                const row = `<tr>
+                    <td>${car.id}</td>
+                    <td><input type="text" value="${car.make}" id="make${car.id}"></td>
+                    <td><input type="text" value="${car.model}" id="model${car.id}"></td>
+                    <td><input type="number" value="${car.year}" id="year${car.id}"></td>
+                    <td><input type="text" value="${car.color}" id="color${car.id}"></td>
+                    <td><input type="number" value="${car.price}" id="price${car.id}"></td>
+                    <td>
+                        <a href="/cars/${car.id}">Details</a>
+                        <button onclick="updateCar(${car.id})">Speichern</button>
+                        <button onclick="deleteCar(${car.id})">Löschen</button>
+                    </td>
+                </tr>`;
+                carsTable.innerHTML += row;
+            });
+        }).catch(error => console.error('Error:', error));
+    }
+
+    function updatePageInfo() {
+        document.getElementById('pageInfo').textContent = `Seite ${currentPage} von ${totalPages}`;
+    }
+
+    function nextPage() {
+        if (currentPage < totalPages) {
+            currentPage++;
+            fetchCars();
+        }
+    }
+
+    function previousPage() {
+        if (currentPage > 1) {
+            currentPage--;
+            fetchCars();
+        }
+    }
+
+    function updateCar(carId) {
+        const carData = {
+            make: document.getElementById('make' + carId).value,
+            model: document.getElementById('model' + carId).value,
+            year: parseInt(document.getElementById('year' + carId).value),
+            color: document.getElementById('color' + carId).value,
+            price: parseInt(document.getElementById('price' + carId).value)
+        };
+
+        fetch(`/cars/${carId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(carData)
+        }).then(response => {
+            if (response.ok) {
+                fetchCars();
+            } else {
+                alert("Fehler beim Aktualisieren des Autos");
+            }
+        }).catch(error => console.error('Error:', error));
+    }
+
+    function deleteCar(carId) {
+        if (confirm("Sind Sie sicher, dass Sie dieses Auto löschen möchten?")) {
+            fetch(`/cars/${carId}`, {
+                method: 'DELETE'
+            }).then(response => {
+                if (response.ok) {
+                    fetchCars();
+                } else {
+                    alert("Fehler beim Löschen des Autos");
+                }
+            }).catch(error => console.error('Error:', error));
+        }
+    }
+</script>
+</body>
+</html>
